@@ -7,8 +7,8 @@
 #define VENDOR_ID       0xFEED
 #define PRODUCT_ID      0x6060
 #define DEVICE_VER      0x0001
-#define MANUFACTURER    qmkbuilder
-#define PRODUCT         keyboard
+#define MANUFACTURER    xurxofp
+#define PRODUCT         masterOfKeys
 #define DESCRIPTION     Keyboard
 
 /* key matrix size */
@@ -28,6 +28,9 @@
 #ifdef BACKLIGHT_PIN
 #define BACKLIGHT_LEVELS 5
 #endif
+
+/* set caps lock led */
+#define CAPSLOCK_PIN F4
 
 /* Set 0 if debouncing isn't needed */
 #define DEBOUNCING_DELAY 5
