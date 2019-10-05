@@ -1,3 +1,13 @@
 {
-	"folders": []
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"keymap_spanish.h": "c",
+			"keymap.h": "c"
+		}
+	}
 }
