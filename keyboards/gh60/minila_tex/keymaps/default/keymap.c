@@ -1,18 +1,23 @@
 #include "minila_tex.h"
 #include QMK_KEYBOARD_H
 #include "keymap_spanish.h"
+#ifndef RGBLIGHT_ENABLE
+#define RGBLIGHT_ENABLE
+#endif
 #ifdef RGBLIGHT_ENABLE
 #    include "rgblight.h"
 #endif
 
-// Each layer gets a name for readability, which is then used in the keymap matrix below.
-// The underscores don't mean anything - you can have a layer called STUFF or any other name.
-// Layer names don't all need to be of the same length, obviously, and you can also skip them
-// entirely and just use numbers.
+
+// Layers definitions
 #define _BL 0
 #define _FL 1
 #define _ML 2
 #define _QL 3
+
+// RGB sleep when not in use variables
+long start = 0;
+bool timer_led = true;
 
 typedef struct {
     bool is_press_action;
@@ -49,32 +54,40 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_TAB, KC_Q, KC_W, KC_E, KC_R, KC_T, KC_Y, KC_U, KC_I, KC_O, KC_P, ES_GRV, ES_PLUS, ES_PLUS,
         KC_CAPS, KC_A, KC_S, KC_D, KC_F, KC_G, KC_H, KC_J, KC_K, KC_L, ES_NTIL, ES_ACUT, ES_CCED, KC_ENT,
         TD(X_LSFT), KC_Z, KC_Z, KC_X, KC_C, KC_V, KC_B, KC_N, KC_M, KC_COMM, KC_DOT, ES_MINS, ES_LESS, KC_UP, TD(X_RSFT),
-        MO(1), KC_LCTL, KC_LALT, KC_LGUI, KC_SPC, KC_MS_BTN2, KC_RGUI, KC_RALT, KC_LEFT, KC_DOWN, KC_RGHT),
+        MO(1), KC_LCTL, KC_LALT, KC_LGUI, KC_SPC, KC_RGUI, KC_RALT, KC_MS_BTN2, KC_LEFT, KC_DOWN, KC_RGHT),
 
     // Keymap _FL: Function Layer
     [_FL] = KEYMAP(
         KC_GRAVE, KC_F1, KC_F2, KC_F3, KC_F4, KC_F5, KC_F6, KC_F7, KC_F8, KC_F9, KC_F10, KC_F11, KC_F12, _______, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,_______,
+        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, KC_PGUP, _______,
         _______, MO(2), _______, _______, _______, _______, _______, _______, KC_HOME, KC_PGDOWN, KC_END),
 
     // Keymap _ML: Media Layer
     [_ML] = KEYMAP(
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, KC_BRIU, KC_BRIU,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, KC_BRMD, _______, KC_VOLU, _______,
+        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, KC_BRIU, KC_BRIU, _______,
+        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
+        _______, _______, _______, _______, _______, _______, _______, _______, KC_MUTE, _______, _______, KC_BRMD, _______, KC_VOLU, _______,
         _______, _______, MO(3), _______, KC_MPLY, _______, _______, _______, KC_MPRV, KC_VOLD, KC_MNXT),
 
     // Keymap _QL: QMK Layer
     [_QL] = KEYMAP(
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, BL_INC, _______,
-        _______, _______, _______, _______, BL_TOGG, _______, _______, _______, _______, BL_DEC, _______),
+        _______, _______, _______, EEPROM_RESET, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
+        _______, _______, _______, RESET, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
+        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, RGB_VAI, _______,
+        _______, _______, _______, _______, RGB_M_P, _______, _______, _______, RGB_MODE_REVERSE, RGB_VAD, RGB_MODE_FORWARD),
 };
+
+/*void suspend_power_down_user(void) {
+    rgb_matrix_set_suspend_state(true);
+}
+
+void suspend_wakeup_init_user(void) {
+    rgb_matrix_set_suspend_state(false);
+}*/
 
 void persistent_default_layer_set(uint16_t default_layer) {
     eeconfig_update_default_layer(default_layer);
@@ -86,16 +99,27 @@ void keyboard_pre_init_user(void) {
     setPinOutput(CAPSLOCK_PIN);
 }
 
-void matrix_init_user(void) {
+/*void matrix_init_user(void) {
     // Happens midway through the firmware's startup process. Hardware is initialized, but features may not be yet.
     rgblight_enable();
-}
+}*/
 
-/*void matrix_scan_user(void) {
+void matrix_scan_user(void) {
     // Whenever possible you should customize your keyboard by using process_record_*()
     // and hooking into events that way, to ensure that your code does not have a negative performance impact on your keyboard.
     // However, in rare cases it is necessary to hook into the matrix scanning
 #ifdef RGBLIGHT_ENABLE
+
+    // rgblight_mode(RGBLIGHT_MODE_ALTERNATING);
+
+    // RGB sleep when not in use START
+    if (timer_elapsed(start) > 60000) {
+        start = 0;
+        timer_clear();
+        timer_led = false;
+        rgblight_disable_noeeprom();
+    }
+    // RGB sleep when not in use END
 
     static uint8_t old_layer = 255;
     uint8_t        new_layer = biton32(layer_state);
@@ -103,19 +127,19 @@ void matrix_init_user(void) {
     if (old_layer != new_layer) {
         switch (new_layer) {
             case _BL:
-                rgblight_setrgb(0xFF, 0xFF, 0xFF);
+                rgblight_sethsv_noeeprom(28,255,rgblight_get_val());
                 break;
             case _FL:
-                rgblight_setrgb(0x00, 0x00, 0xFF);
+                rgblight_sethsv_noeeprom(170,255,rgblight_get_val());
                 break;
             case _ML:
-                rgblight_setrgb(0xFF, 0x64, 0x16);
+                rgblight_sethsv_noeeprom(123,255,rgblight_get_val());
                 break;
             case _QL:
-                rgblight_setrgb(0x7D, 0x00, 0xFF);
+                rgblight_sethsv_noeeprom(191,255,rgblight_get_val());
                 break;
             default:
-                rgblight_setrgb(0xFF, 0x00, 0x00);
+                rgblight_sethsv_noeeprom(0,255,rgblight_get_val());
                 break;
         }
 
@@ -123,20 +147,28 @@ void matrix_init_user(void) {
     }
 
 #endif  // RGBLIGHT_ENABLE
-}*/
+}
 
-/*void led_set_user(uint8_t usb_led) {
+void led_set_user(uint8_t usb_led) {
     // This function will be called when the state of one of the host LED state changes
     if (IS_LED_ON(usb_led, USB_LED_CAPS_LOCK)) {
         writePinLow(CAPSLOCK_PIN);
     } else {
         writePinHigh(CAPSLOCK_PIN);
     }
-}*/
+}
 
-/*bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     // This is called by QMK during key processing before the actual key event is handled.
-    if (record->event.pressed) {
+
+    // RGB sleep when not in use START
+    start = timer_read();
+    timer_led = true;
+    rgblight_enable_noeeprom();
+    // RGB sleep when not in use END
+
+    //TODO: Make this working again (dancing when key presed)
+    /*if (record->event.pressed) {
         rgblight_sethsv_noeeprom(rgblight_get_hue(), rgblight_get_sat(), 0xAA);
         // Do something when pressed
     } else {
@@ -158,9 +190,9 @@ void matrix_init_user(void) {
                 break;
         }
         // Do something else when release
-    }
+    }*/
     return true;
-}*/
+}
 
 int cur_dance(qk_tap_dance_state_t *state) {
     if (state->count == 1) {
