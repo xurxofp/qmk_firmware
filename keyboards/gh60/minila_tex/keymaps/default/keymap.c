@@ -8,12 +8,13 @@
 #    include "rgblight.h"
 #endif
 
-
 // Layers definitions
 #define _BL 0
 #define _FL 1
 #define _ML 2
 #define _QL 3
+
+static uint8_t old_layer = 255;
 
 // RGB sleep when not in use variables
 long start = 0;
@@ -35,7 +36,20 @@ enum {
 };
 
 // Tap dance enums
-enum { X_LSFT = 0, X_RSFT = 1 };
+enum {
+    X_LSFT = 0,
+    X_RSFT = 1
+};
+
+// Layers control
+bool layer_fixed = false;
+uint8_t fixed_layer = 0;
+enum custom_keycodes {
+    LAYER_FIX = SAFE_RANGE,
+    M_LAYER_1,
+    M_LAYER_2,
+    M_LAYER_3
+};
 
 int cur_dance(qk_tap_dance_state_t *state);
 
@@ -54,15 +68,15 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_TAB, KC_Q, KC_W, KC_E, KC_R, KC_T, KC_Y, KC_U, KC_I, KC_O, KC_P, ES_GRV, ES_PLUS, ES_PLUS,
         KC_CAPS, KC_A, KC_S, KC_D, KC_F, KC_G, KC_H, KC_J, KC_K, KC_L, ES_NTIL, ES_ACUT, ES_CCED, KC_ENT,
         TD(X_LSFT), KC_Z, KC_Z, KC_X, KC_C, KC_V, KC_B, KC_N, KC_M, KC_COMM, KC_DOT, ES_MINS, ES_LESS, KC_UP, TD(X_RSFT),
-        MO(1), KC_LCTL, KC_LALT, KC_LGUI, KC_SPC, KC_RGUI, KC_RALT, KC_MS_BTN2, KC_LEFT, KC_DOWN, KC_RGHT),
+        M_LAYER_1, KC_LCTL, KC_LALT, KC_LGUI, KC_SPC, KC_RGUI, KC_RALT, KC_APP, KC_LEFT, KC_DOWN, KC_RGHT),
 
     // Keymap _FL: Function Layer
     [_FL] = KEYMAP(
-        KC_GRAVE, KC_F1, KC_F2, KC_F3, KC_F4, KC_F5, KC_F6, KC_F7, KC_F8, KC_F9, KC_F10, KC_F11, KC_F12, _______, _______,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
+        KC_GRAVE, KC_F1, KC_F2, KC_F3, KC_F4, KC_F5, KC_F6, KC_F7, KC_F8, KC_F9, KC_F10, KC_F11, KC_F12, KC_BSPC, KC_DEL,
+        LAYER_FIX, _______, KC_MS_UP, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
+        _______, KC_MS_LEFT, KC_MS_DOWN, KC_MS_RIGHT, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, KC_PGUP, _______,
-        _______, MO(2), _______, _______, _______, _______, _______, _______, KC_HOME, KC_PGDOWN, KC_END),
+        _______, M_LAYER_2, _______, _______, _______, KC_MS_BTN1, KC_MS_BTN2, _______, KC_HOME, KC_PGDOWN, KC_END),
 
     // Keymap _ML: Media Layer
     [_ML] = KEYMAP(
@@ -70,7 +84,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, KC_BRIU, KC_BRIU, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, KC_MUTE, _______, _______, KC_BRMD, _______, KC_VOLU, _______,
-        _______, _______, MO(3), _______, KC_MPLY, _______, _______, _______, KC_MPRV, KC_VOLD, KC_MNXT),
+        _______, _______, M_LAYER_3, _______, KC_MPLY, _______, _______, _______, KC_MPRV, KC_VOLD, KC_MNXT),
 
     // Keymap _QL: QMK Layer
     [_QL] = KEYMAP(
@@ -101,7 +115,7 @@ void keyboard_pre_init_user(void) {
 
 /*void matrix_init_user(void) {
     // Happens midway through the firmware's startup process. Hardware is initialized, but features may not be yet.
-    rgblight_enable();
+    // rgblight_enable();
 }*/
 
 void matrix_scan_user(void) {
@@ -121,8 +135,7 @@ void matrix_scan_user(void) {
     }
     // RGB sleep when not in use END
 
-    static uint8_t old_layer = 255;
-    uint8_t        new_layer = biton32(layer_state);
+    uint8_t new_layer = biton32(layer_state);
 
     if (old_layer != new_layer) {
         switch (new_layer) {
@@ -167,30 +180,54 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     rgblight_enable_noeeprom();
     // RGB sleep when not in use END
 
-    //TODO: Make this working again (dancing when key presed)
-    /*if (record->event.pressed) {
-        rgblight_sethsv_noeeprom(rgblight_get_hue(), rgblight_get_sat(), 0xAA);
-        // Do something when pressed
-    } else {
-        switch (biton32(layer_state)) {
-            case _BL:
-                rgblight_setrgb(0xFF, 0xFF, 0xFF);
+    if (layer_fixed && (keycode == LAYER_FIX)) {
+        if (record->event.pressed) {
+        // when keycode is pressed
+            layer_clear();
+            layer_fixed = false;
+            fixed_layer = 0;
+        } else {
+        // when keycode is released
+        }
+        return false;
+    }
+    else if (!layer_fixed) {
+        switch (keycode) {
+            case LAYER_FIX:
+                if (record->event.pressed) {
+                    if (!layer_fixed) {
+                        layer_fixed = true;
+                        fixed_layer = biton32(layer_state);
+                    }
+                }
+                return false;
                 break;
-            case _FL:
-                rgblight_setrgb(0x00, 0x00, 0xFF);
+            case M_LAYER_1:
+                if (record->event.pressed) {
+                    layer_on(1);
+                } else {
+                    layer_off(1);
+                }
+                return false;
                 break;
-            case _ML:
-                rgblight_setrgb(0xFF, 0x64, 0x16);
+            case M_LAYER_2:
+                if (record->event.pressed) {
+                    layer_on(2);
+                } else {
+                    layer_off(2);
+                }
+                return false;
                 break;
-            case _QL:
-                rgblight_setrgb(0x7D, 0x00, 0xFF);
-                break;
-            default:
-                rgblight_setrgb(0xFF, 0x00, 0x00);
+            case M_LAYER_3:
+                if (record->event.pressed) {
+                    layer_on(3);
+                } else {
+                    layer_off(3);
+                }
+                return false;
                 break;
         }
-        // Do something else when release
-    }*/
+    }
     return true;
 }
 
