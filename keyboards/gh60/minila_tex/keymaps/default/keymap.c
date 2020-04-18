@@ -15,6 +15,7 @@
 #define _QL 3
 
 static uint8_t old_layer = 255;
+// static uint16_t key_timer;
 
 // RGB sleep when not in use variables
 long start = 0;
@@ -276,11 +277,11 @@ void lsft_finished(qk_tap_dance_state_t *state, void *user_data) {
             register_code(KC_8);
             break;
         case DOUBLE_TAP:
-            register_code(KC_LALT);
+            register_code(KC_RALT);
             register_code(ES_ACUT);
             break;
         case TRIPLE_TAP:
-            register_code(KC_LALT);
+            register_code(KC_RALT);
             register_code(ES_GRV);
     }
 }
@@ -295,12 +296,12 @@ void lsft_reset(qk_tap_dance_state_t *state, void *user_data) {
             unregister_code(KC_8);
             break;
         case DOUBLE_TAP:
-            unregister_code(KC_LALT);
             unregister_code(ES_ACUT);
+            unregister_code(KC_RALT);
             break;
         case TRIPLE_TAP:
-            unregister_code(KC_LALT);
             unregister_code(ES_GRV);
+            unregister_code(KC_RALT);
     }
     xtap_state.state = 0;
 }
@@ -316,11 +317,11 @@ void rsft_finished(qk_tap_dance_state_t *state, void *user_data) {
             register_code(KC_9);
             break;
         case DOUBLE_TAP:
-            register_code(KC_LALT);
+            register_code(KC_RALT);
             register_code(ES_CCED);
             break;
         case TRIPLE_TAP:
-            register_code(KC_LALT);
+            register_code(KC_RALT);
             register_code(ES_PLUS);
     }
 }
@@ -335,12 +336,12 @@ void rsft_reset(qk_tap_dance_state_t *state, void *user_data) {
             unregister_code(KC_9);
             break;
         case DOUBLE_TAP:
-            unregister_code(KC_LALT);
             unregister_code(ES_CCED);
+            unregister_code(KC_RALT);
             break;
         case TRIPLE_TAP:
-            unregister_code(KC_LALT);
             unregister_code(ES_PLUS);
+            unregister_code(KC_RALT);
     }
     xtap_state.state = 0;
 }
